@@ -20,8 +20,8 @@ current status in `/vehicle/traffic_lights` message. You can use this message to
 as well as to verify your TL classifier.
 '''
 
-LOOKAHEAD_WPS = 200  # Number of waypoints we will publish. You can change this numbe
-MaxDeceleration = 1.0
+LOOKAHEAD_WPS = 50  # Number of waypoints we will publish. You can change this numbe
+MaxDeceleration = 0.5
 
 
 class WaypointUpdater(object):
@@ -34,10 +34,11 @@ class WaypointUpdater(object):
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
 
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
+        rospy.Subscriber('/current_velocity',TwistStamped, self.currentvel_cb)
 
         rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
 
-        rospy.Subscriber('/obstacle_waypoint', Int32, self.obstacle_cb)
+        # rospy.Subscriber('/obstacle_waypoint', Int32, self.obstacle_cb)
 
         self.FinalWaypointsPublisher = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
@@ -46,13 +47,14 @@ class WaypointUpdater(object):
         self.BaseWaypoints = None
         self.Waypoint = None
         self.WaypointTree = None
+        self.current_vel = None
 
         # Suspend 
-        self.loop(50)
+        self.loop()
     #--------------------------------------
-    def loop(self,ExeRate):
+    def loop(self):
 
-        ExeRate = rospy.Rate(ExeRate) 
+        ExeRate = rospy.Rate(50) 
         # Check if the Roscore is Active
         while not rospy.is_shutdown():
             if not self.Pose is None and not self.BaseWaypoints is None and not self.WaypointTree is None:
@@ -97,26 +99,39 @@ class WaypointUpdater(object):
         return lane
     #--------------------------------------
     def decelerate_waypoints(self, waypoints, ClosestwaypointID):
-        DecelerationWaypoints = []
+        temp = []
         for i, wp in enumerate(waypoints):
         
             p = Waypoint()
             p.pose = wp.pose
-            StopDist = 3
+
+            StopDist = 2
             # Stop behind line
-            StopWaypointID = self.StopWaypointID - ClosestwaypointID
-            DistanceToStop = max(self.distance(waypoints, i, StopWaypointID) - StopDist, 0)
+            StopWaypointID = max(self.StopWaypointID - ClosestwaypointID - StopDist, 0)
+
+            if self.current_vel < 0.5:
+                StopWaypointID = 0
+
+            DistanceToStop = self.distance(waypoints, i, StopWaypointID)
+
+            # DistanceToStop = max(self.distance(waypoints, i, StopWaypointID) - StopDist, 0)
+
             vel = math.sqrt(2 * MaxDeceleration * DistanceToStop)
+
             if vel < 1.:
                 vel == 0.
+
             p.twist.twist.linear.x = min(vel, wp.twist.twist.linear.x)
-            DecelerationWaypoints.append(p)
+            temp.append(p)
             
-        return DecelerationWaypoints
+        return temp
     #--------------------------------------
     def pose_cb(self, msg):
         self.Pose = msg
     #--------------------------------------
+    def currentvel_cb(self, msg):
+        self.current_vel = msg.twist.linear.x
+    
     def publish_nxt_waypoints(self, NextWaypointID):
         WaypointsOfLane = Lane()
         WaypointsOfLane.header = self.BaseWaypoints.header
