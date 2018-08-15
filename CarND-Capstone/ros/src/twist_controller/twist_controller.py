@@ -14,9 +14,9 @@ class Controller(object):
         self.yaw_controller = YawController(WheelBase, SteerRatio, MIN_VELOCITY,
                                             MaxLateralAcceleration, MaxSteeringAngle)
 
-        Kp = 3.0
-        Ki = 0.0
-        Kd = 0.0
+        Kp = 1.0
+        Ki = 0.5
+        Kd = 0.03
         MinThrottle = 0.0
         MaxThrottle = 0.2
         self.ThrottleController = PID(Kp, Ki, Kd, MinThrottle, MaxThrottle)
@@ -49,13 +49,14 @@ class Controller(object):
         self.CurrentTime = CurrentTime
 
         Throttle = self.ThrottleController.step(LinearVelocityError, dt)
-        BrakePress = 0.
+        Brake = 0. # Torque in N*m
 
         if DesiredVelocity == 0. and CurrentLinearVelocity < MIN_VELOCITY:
             Throttle = 0.
-            BrakePress = 1000  # STOP
+            Brake = 700  # Hold car in rest if stopped at front of light. 
 
         elif Throttle < 0.1 and LinearVelocityError < 0.:
             Throttle = 0.0
-            BrakePress = abs(max(LinearVelocityError, self.DecelerationLimit)) * self.VehicleMass * self.WheelRadius  
-        return Throttle, BrakePress, Steer
+			decel = max(LinearVelocityError, self.DecelerationLimit)
+            Brake = abs(decel) * self.VehicleMass * self.WheelRadius
+        return Throttle, Brake, Steer

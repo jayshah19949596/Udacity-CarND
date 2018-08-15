@@ -73,10 +73,10 @@ class DBWNode(object):
         self.SteeringAngle = 0
         self.BreakPress = 0
 
-        self.loop(50)
+        self.loop()
 
-    def loop(self,Frequency):
-        Freq = rospy.Rate(Frequency)
+    def loop(self):
+        Freq = rospy.Rate(50)
         while not rospy.is_shutdown():
             # TODO: Get predicted Throttle, brake, and steering using `twist_controller`
             # You should only publish the control commands if dbw is enabled
