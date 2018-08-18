@@ -57,6 +57,6 @@ class Controller(object):
 
         elif Throttle < 0.1 and LinearVelocityError < 0.:
             Throttle = 0.0
-			decel = max(LinearVelocityError, self.DecelerationLimit)
-            Brake = abs(decel) * self.VehicleMass * self.WheelRadius
+	    Deceleration = max(LinearVelocityError, self.DecelerationLimit)
+            Brake = abs(Deceleration) * self.VehicleMass * self.WheelRadius
         return Throttle, Brake, Steer
